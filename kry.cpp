@@ -2,7 +2,7 @@
  * VUT FIT KRY 2020 2. Project - RSA
  *
  * @author Dominik Harmim <harmim6@gmail.com>
- * @date 30.4.2020
+ * @date 3.5.2020
  */
 
 
@@ -20,7 +20,7 @@ using namespace std;
 
 
 /**
- * A class that represents en exception during of the processing the RSA
+ * A class that represents en exception during the processing of the RSA
  * algorithm.
  */
 class RsaException : public logic_error
@@ -72,7 +72,7 @@ public:
 				}
 
 				err_msg =
-					"Error: A required size of a public modulus (B) should be"
+					"Error: a required size of the public modulus (B) should be"
 					" a number of bits > 6.";
 				try
 				{
@@ -162,7 +162,7 @@ public:
 
 				if (n == 0)
 				{
-					err_msg = "A public modulus (N) can not be 0.";
+					err_msg = "The public modulus (N) can not be 0.";
 					throw RsaException(err_msg);
 				}
 
@@ -230,13 +230,12 @@ public:
 							continue;
 						}
 
-						const string err_msg =
+						static const string err_msg =
 							"The factorisation of the public modulus has"
 							" failed.";
 						throw RsaException(err_msg);
 					}
 				}
-
 				gmp_printf(
 					"%#Zx %#Zx %#Zx\n",
 					p.get_mpz_t(),
@@ -264,12 +263,12 @@ private:
 	/// A GMP interface for random functions.
 	gmp_randclass rand = gmp_randclass(gmp_randinit_mt);
 	Operation operation; /// An operation to be performed.
-	mp_bitcnt_t b = 0; /// A required size of a public modulus.
+	mp_bitcnt_t b = 0; /// A required size of the public modulus.
 	mpz_class p; /// The first prime number.
 	mpz_class q; /// The second prime number.
-	mpz_class n; /// A public modulus.
-	mpz_class e; /// A public exponent.
-	mpz_class d; /// A private exponent.
+	mpz_class n; /// The public modulus.
+	mpz_class e; /// The public exponent.
+	mpz_class d; /// The private exponent.
 	mpz_class m; /// A decrypted message.
 	mpz_class c; /// An encrypted message.
 
@@ -393,7 +392,7 @@ private:
 
 			if (g == n)
 			{
-				const string err_msg =
+				static const string err_msg =
 					"The factorisation of the public modulus has failed.";
 				throw RsaException(err_msg);
 			}
@@ -432,7 +431,7 @@ private:
 	{
 		if (x <= 0 || y <= 0)
 		{
-			const string err_msg =
+			static const string err_msg =
 				"Parameters `x` and `y` of the GCD function should be > 0.";
 			throw RsaException(err_msg);
 		}
@@ -462,7 +461,7 @@ private:
 	{
 		if (n <= 0)
 		{
-			const string err_msg =
+			static const string err_msg =
 				"The parameter `n` of the INV function should be > 0.";
 			throw RsaException(err_msg);
 		}
@@ -501,7 +500,7 @@ private:
 	{
 		if (a <= 0 || n <= a || n % 2 == 0)
 		{
-			const string err_msg =
+			static const string err_msg =
 				"Parameters of the Jacobi symbol function are invalid.";
 			throw RsaException(err_msg);
 		}
@@ -541,7 +540,7 @@ private:
 
 	/**
 	 * Checks whether a given number is a prime number using
-	 * the Solovay–Strassen test
+	 * the Solovay–Strassen test.
 	 *
 	 * @param k A number to be checked whether it is a prime number.
 	 * @return True if `k` is likely a prime number, false otherwise.
@@ -551,7 +550,7 @@ private:
 	{
 		if (k <= 0)
 		{
-			const string err_msg =
+			static const string err_msg =
 				"The parameter `a` of the `is_prime` function should be > 0.";
 			throw RsaException(err_msg);
 		}
@@ -607,7 +606,7 @@ private:
 	{
 		if (length <= 2)
 		{
-			const string err_msg =
+			static const string err_msg =
 				"The number of bits of a prime number should be at least 3.";
 			throw RsaException(err_msg);
 		}
@@ -638,7 +637,7 @@ private:
  * @return EXIT_SUCCESS if the RSA algorithm is performed successfully,
  *         EXIT_FAILURE otherwise.
  */
-auto main(int argc, char *argv[]) -> int
+auto main(const int argc, const char *const argv[]) -> int
 {
 	try
 	{
