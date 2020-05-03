@@ -216,7 +216,19 @@ public:
 				break;
 
 			case Operation::BREAK:
-				factorise();
+				for (size_t i = 0; i < 20; i++)
+				{
+					try
+					{
+						factorise();
+						break;
+					}
+					catch (const RsaException &e)
+					{
+						continue;
+					}
+				}
+
 				gmp_printf(
 					"%#Zx %#Zx %#Zx\n",
 					p.get_mpz_t(),
