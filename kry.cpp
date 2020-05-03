@@ -216,6 +216,13 @@ public:
 				break;
 
 			case Operation::BREAK:
+				factorise();
+				gmp_printf(
+					"%#Zx %#Zx %#Zx\n",
+					p.get_mpz_t(),
+					q.get_mpz_t(),
+					m.get_mpz_t()
+				);
 				break;
 		}
 	}
@@ -300,6 +307,87 @@ private:
 
 
 	/**
+	 * Factorises the public modulus using the Pollard Rho Brent Integer
+	 * Factorisation algorithm. Furthermore, it computes both private prime
+	 * numbers, and the private exponent. Finally, it decrypts the message.
+	 *
+	 * @throw RsaException if the factorisation has failed.
+	 */
+	auto factorise() -> void
+	{
+		if (n == 1)
+		{
+			p = n;
+		}
+		else if (n % 2 == 0)
+		{
+			p = 2;
+		}
+		else
+		{
+			mpz_class
+				y = 1 + rand.get_z_range(n - 1),
+				g = 1, r = 1, _q = 1,
+				x, k, ys;
+			const mpz_class
+				_c = 1 + rand.get_z_range(n - 1),
+				_m = 1 + rand.get_z_range(n - 1);
+
+			while (g == 1)
+			{
+				x = y;
+				for (mpz_class i = 0; i < r; i++)
+				{
+					y = (y * y % n + _c) % n;
+				}
+
+				k = 0;
+				while (k < r && g == 1)
+				{
+					ys = y;
+					for (mpz_class i = 0; i < (_m <= r - k ? _m : r - k); i++)
+					{
+						y = (y * y % n + _c) % n;
+						_q = _q * abs(x - y) % n;
+					}
+					g = gcd(_q, n);
+					k += _m;
+				}
+
+				r *= 2;
+			}
+
+			if (g == n)
+			{
+				while (true)
+				{
+					ys = (ys * ys % n + c) % n;
+					g = gcd(abs(x - ys), n);
+
+					if (g > 1)
+					{
+						break;
+					}
+				}
+			}
+
+			if (g == n)
+			{
+				const string err_msg =
+					"The factorisation of the public modulus has failed.";
+				throw RsaException(err_msg);
+			}
+
+			p = g;
+		}
+
+		q = n / p;
+		d = inv(e, (p - 1) * (q - 1));
+		decrypt();
+	}
+
+
+	/**
 	 * Checks whether a given string is a hexadecimal number.
 	 *
 	 * @param s A string to be checked whether it is a hexadecimal number.
@@ -359,22 +447,19 @@ private:
 			throw RsaException(err_msg);
 		}
 
-		mpz_class g = n, h = x, w = 1, z = 0, v = 0, r = 1, y, tmp;
+		mpz_class g = n, h = x, w = 1, z = 0, v = 0, r = 1, y;
 		while (h > 0)
 		{
 			y = g / h;
 
-			tmp = h;
-			h = g - y * tmp;
-			g = tmp;
+			g = g - y * h;
+			swap(h, g);
 
-			tmp = z;
-			z = w - y * tmp;
-			w = tmp;
+			w = w - y * z;
+			swap(z, w);
 
-			tmp = r;
-			r = v - y * tmp;
-			v = tmp;
+			v = v - y * r;
+			swap(r, v);
 		}
 
 		mpz_class inv;
@@ -402,7 +487,7 @@ private:
 		}
 
 		int t = 1;
-		mpz_class _a = a, _n = n, r, tmp;
+		mpz_class _a = a, _n = n, r;
 		while (_a != 0)
 		{
 			while (_a % 2 == 0)
@@ -415,9 +500,7 @@ private:
 				}
 			}
 
-			tmp = _a;
-			_a = _n;
-			_n = tmp;
+			swap(_a, _n);
 
 			if (_a % 4 == 3 && _n % 4 == 3)
 			{
