@@ -225,7 +225,15 @@ public:
 					}
 					catch (const RsaException &e)
 					{
-						continue;
+						if (i < 19)
+						{
+							continue;
+						}
+
+						const string err_msg =
+							"The factorisation of the public modulus has"
+							" failed.";
+						throw RsaException(err_msg);
 					}
 				}
 
