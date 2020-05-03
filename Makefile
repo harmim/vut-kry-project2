@@ -12,7 +12,7 @@ PACK := xharmi00.zip
 build: $(OUT)
 
 $(OUT): $(SRC)
-	g++ -std=gnu++17 -W -Wall -Wextra -Werror -pedantic -O3 -lgmp -lgmpxx \
+	g++ -std=gnu++17 -W -Wall -Wextra -Werror -pedantic -O3 -lgmp -lgmpxx -lm \
 		$^ -o $@
 
 

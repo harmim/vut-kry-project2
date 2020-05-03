@@ -10,6 +10,9 @@
 #include <iostream>
 #include <cstring>
 #include <string>
+#include <cstdio>
+#include <ctime>
+#include <cmath>
 #include <gmpxx.h>
 
 
@@ -49,18 +52,23 @@ public:
 	 */
 	Rsa(const int argc, const char *const argv[])
 	{
+		static const string invalid_args_msg =
+			"Error: invalid arguments."
+			" Expecting: -g B | -e E N M | -d D N C | -b E N C";
+
 		if (argc < 2 || strlen(argv[1]) != 2 || argv[1][0] != '-')
 		{
-			throw RsaException(INVALID_ARGS_MSG);
+			throw RsaException(invalid_args_msg);
 		}
 
 		string err_msg;
-		switch (static_cast<Operation>(argv[1][1]))
+		const auto op = static_cast<Operation>(argv[1][1]);
+		switch (op)
 		{
 			case Operation::GENERATE:
 				if (argc != 3)
 				{
-					throw RsaException(INVALID_ARGS_MSG);
+					throw RsaException(invalid_args_msg);
 				}
 
 				err_msg =
@@ -83,89 +91,98 @@ public:
 				break;
 
 			case Operation::ENCRYPT:
-				if (argc != 5)
-				{
-					throw RsaException(INVALID_ARGS_MSG);
-				}
-
-				err_msg =
-					"Error: the arguments E, N, M should be hexadecimal numbers"
-					" (prefix 0x or 0X).";
-				if (!is_hex(argv[2]) || !is_hex(argv[3]) || !is_hex(argv[4]))
-				{
-					throw RsaException(err_msg);
-				}
-				try
-				{
-					e = mpz_class(argv[2]);
-					n = mpz_class(argv[3]);
-					m = mpz_class(argv[4]);
-				}
-				catch (const exception &e)
-				{
-					throw RsaException(err_msg);
-				}
-
-				operation = Operation::ENCRYPT;
-				break;
-
 			case Operation::DECRYPT:
-				if (argc != 5)
-				{
-					throw RsaException(INVALID_ARGS_MSG);
-				}
-
-				err_msg =
-					"Error: the arguments D, N, C should be hexadecimal numbers"
-					" (prefix 0x or 0X).";
-				if (!is_hex(argv[2]) || !is_hex(argv[3]) || !is_hex(argv[4]))
-				{
-					throw RsaException(err_msg);
-				}
-				try
-				{
-					d = mpz_class(argv[2]);
-					n = mpz_class(argv[3]);
-					c = mpz_class(argv[4]);
-				}
-				catch (const exception &e)
-				{
-					throw RsaException(err_msg);
-				}
-
-				operation = Operation::DECRYPT;
-				break;
-
 			case Operation::BREAK:
 				if (argc != 5)
 				{
-					throw RsaException(INVALID_ARGS_MSG);
+					throw RsaException(invalid_args_msg);
 				}
 
-				err_msg =
-					"Error: the arguments E, N, C should be hexadecimal numbers"
-					" (prefix 0x or 0X).";
+				switch (op)
+				{
+					case Operation::ENCRYPT:
+						operation = Operation::ENCRYPT;
+						err_msg =
+							"Error: arguments E, N, M should be hexadecimal"
+							" numbers (prefix 0x or 0X).";
+						break;
+
+					case Operation::DECRYPT:
+						operation = Operation::DECRYPT;
+						err_msg =
+							"Error: arguments D, N, C should be hexadecimal"
+							" numbers (prefix 0x or 0X).";
+						break;
+
+					case Operation::BREAK:
+						operation = Operation::BREAK;
+						err_msg =
+							"Error: arguments E, N, C should be hexadecimal"
+							" numbers (prefix 0x or 0X).";
+						break;
+
+					default:
+						break;
+				}
 				if (!is_hex(argv[2]) || !is_hex(argv[3]) || !is_hex(argv[4]))
 				{
 					throw RsaException(err_msg);
 				}
+
 				try
 				{
-					e = mpz_class(argv[2]);
-					n = mpz_class(argv[3]);
-					c = mpz_class(argv[4]);
+					switch (op)
+					{
+						case Operation::ENCRYPT:
+							e = mpz_class(argv[2]);
+							n = mpz_class(argv[3]);
+							m = mpz_class(argv[4]);
+							break;
+
+						case Operation::DECRYPT:
+							d = mpz_class(argv[2]);
+							n = mpz_class(argv[3]);
+							c = mpz_class(argv[4]);
+							break;
+
+						case Operation::BREAK:
+							e = mpz_class(argv[2]);
+							n = mpz_class(argv[3]);
+							c = mpz_class(argv[4]);
+							break;
+
+						default:
+							break;
+					}
 				}
 				catch (const exception &e)
 				{
 					throw RsaException(err_msg);
 				}
 
-				operation = Operation::BREAK;
+				if (n == 0)
+				{
+					err_msg = "A public modulus (N) can not be 0.";
+					throw RsaException(err_msg);
+				}
+
 				break;
 
 			default:
-				throw RsaException(INVALID_ARGS_MSG);
+				throw RsaException(invalid_args_msg);
 		}
+
+		unsigned long seed;
+		FILE *urandom = fopen("/dev/urandom", "r");
+		if (urandom)
+		{
+			fread(&seed, sizeof(seed), 1, urandom);
+		}
+		else
+		{
+			seed = static_cast<unsigned long>(time(nullptr));
+		}
+		rand.seed(seed);
 	}
 
 
@@ -177,6 +194,15 @@ public:
 		switch (operation)
 		{
 			case Operation::GENERATE:
+				generate();
+				gmp_printf(
+					"%#Zx %#Zx %#Zx %#Zx %#Zx\n",
+					p.get_mpz_t(),
+					q.get_mpz_t(),
+					n.get_mpz_t(),
+					e.get_mpz_t(),
+					d.get_mpz_t()
+				);
 				break;
 
 			case Operation::ENCRYPT:
@@ -199,24 +225,19 @@ private:
 	/**
 	 * Possible operations to be performed.
 	 */
-	enum class Operation : const
-	char
+	enum class Operation : const char
 	{
 		GENERATE = 'g', /// generation of keys
-			ENCRYPT = 'e', /// encryption
-			DECRYPT = 'd', /// decryption
-			BREAK = 'b', /// breaking the RSA
+		ENCRYPT = 'e', /// encryption
+		DECRYPT = 'd', /// decryption
+		BREAK = 'b', /// breaking the RSA
 	};
 
 
-	/// An error message for invalid input arguments.
-	const string INVALID_ARGS_MSG =
-		"Error: invalid arguments."
-		" Expecting: -g B | -e E N M | -d D N C | -b E N C";
-
-
+	/// A GMP interface for random functions.
+	gmp_randclass rand = gmp_randclass(gmp_randinit_mt);
 	Operation operation; /// An operation to be performed.
-	unsigned long b = 0; /// A required size of a public modulus.
+	mp_bitcnt_t b = 0; /// A required size of a public modulus.
 	mpz_class p; /// The first prime number.
 	mpz_class q; /// The second prime number.
 	mpz_class n; /// A public modulus.
@@ -227,14 +248,36 @@ private:
 
 
 	/**
-	 * Checks whether a given string is a hexadecimal number.
-	 *
-	 * @param s A string to be checked whether it is a hexadecimal number.
-	 * @return True if a given string is a hexadecimal number, false otherwise.
+	 * Generates RSA keys.
 	 */
-	static auto is_hex(const char s[]) -> bool
+	auto generate() -> void
 	{
-		return strlen(s) > 2 && s[0] == '0' && (s[1] == 'x' || s[1] == 'X');
+		const mp_bitcnt_t p_length = ceil(b / 2.), q_length = b - p_length;
+		while (true)
+		{
+			p = generate_prime(p_length);
+			q = generate_prime(q_length);
+
+			if (p == q)
+			{
+				continue;
+			}
+
+			n = p * q;
+
+			if (mpz_sizeinbase(n.get_mpz_t(), 2) == b)
+			{
+				break;
+			}
+		}
+
+		const mpz_class h = (p - 1) * (q - 1);
+		do
+		{
+			e = 2 + rand.get_z_range(h - 2);
+		}
+		while (gcd(e, h) != 1);
+		d = inv(e, h);
 	}
 
 
@@ -253,6 +296,233 @@ private:
 	auto decrypt() -> void
 	{
 		mpz_powm(m.get_mpz_t(), c.get_mpz_t(), d.get_mpz_t(), n.get_mpz_t());
+	}
+
+
+	/**
+	 * Checks whether a given string is a hexadecimal number.
+	 *
+	 * @param s A string to be checked whether it is a hexadecimal number.
+	 * @return True if a given string is a hexadecimal number, false otherwise.
+	 */
+	static auto is_hex(const char s[]) -> bool
+	{
+		return strlen(s) > 2 && s[0] == '0' && (s[1] == 'x' || s[1] == 'X');
+	}
+
+
+	/**
+	 * Computes a greatest common divisor (GCD) of two numbers using
+	 * the Euclid's algorithm.
+	 *
+	 * @param x The first argument of the GCD.
+	 * @param y The second argument of the GCD.
+	 * @return A greatest common divisor (GCD) of two numbers.
+	 * @throw RsaException if arguments are not valid.
+	 */
+	static auto gcd(const mpz_class &x, const mpz_class &y) -> mpz_class
+	{
+		if (x <= 0 || y <= 0)
+		{
+			const string err_msg =
+				"Parameters `x` and `y` of the GCD function should be > 0.";
+			throw RsaException(err_msg);
+		}
+
+		mpz_class s = x, t = y, div;
+		while (s > 0)
+		{
+			div = s;
+			s = t % s;
+			t = div;
+		}
+
+		return div;
+	}
+
+
+	/**
+	 * Computes a multiplicative inverse of `x` modulo `n` using the extended
+	 * Euclid's algorithm.
+	 *
+	 * @param x An element for the computation of a multiplicative inverse.
+	 * @param n A modulus for the computation of a multiplicative inverse.
+	 * @return A multiplicative inverse of `x` modulo `n`.
+	 * @throw RsaException if arguments are not valid.
+	 */
+	static auto inv(const mpz_class &x, const mpz_class &n) -> mpz_class
+	{
+		if (n <= 0)
+		{
+			const string err_msg =
+				"The parameter `n` of the INV function should be > 0.";
+			throw RsaException(err_msg);
+		}
+
+		mpz_class g = n, h = x, w = 1, z = 0, v = 0, r = 1, y, tmp;
+		while (h > 0)
+		{
+			y = g / h;
+
+			tmp = h;
+			h = g - y * tmp;
+			g = tmp;
+
+			tmp = z;
+			z = w - y * tmp;
+			w = tmp;
+
+			tmp = r;
+			r = v - y * tmp;
+			v = tmp;
+		}
+
+		mpz_class inv;
+		mpz_mod(inv.get_mpz_t(), v.get_mpz_t(), n.get_mpz_t());
+
+		return inv;
+	}
+
+
+	/**
+	 * Computes a Jacobi symbol `a/n`.
+	 *
+	 * @param a The `a` argument of the Jacobi symbol function.
+	 * @param n The `n` argument of the Jacobi symbol function.
+	 * @return A Jacobi symbol `a/n`.
+	 * @throw RsaException if arguments are not valid.
+	 */
+	static auto jacobi(const mpz_class &a, const mpz_class &n) -> int
+	{
+		if (a <= 0 || n <= a || n % 2 == 0)
+		{
+			const string err_msg =
+				"Parameters of the Jacobi symbol function are invalid.";
+			throw RsaException(err_msg);
+		}
+
+		int t = 1;
+		mpz_class _a = a, _n = n, r, tmp;
+		while (_a != 0)
+		{
+			while (_a % 2 == 0)
+			{
+				_a /= 2;
+				r = _n % 8;
+				if (r == 3 || r == 5)
+				{
+					t = -t;
+				}
+			}
+
+			tmp = _a;
+			_a = _n;
+			_n = tmp;
+
+			if (_a % 4 == 3 && _n % 4 == 3)
+			{
+				t = -t;
+			}
+
+			_a %= _n;
+		}
+
+		if (_n == 1)
+		{
+			return t;
+		}
+
+		return 0;
+	}
+
+
+	/**
+	 * Checks whether a given number is a prime number using
+	 * the Solovay–Strassen test
+	 *
+	 * @param k A number to be checked whether it is a prime number.
+	 * @return True if `k` is likely a prime number, false otherwise.
+	 * @throw RsaException if arguments are not valid.
+	 */
+	auto is_prime(const mpz_class &k) -> bool
+	{
+		if (k <= 0)
+		{
+			const string err_msg =
+				"The parameter `a` of the `is_prime` function should be > 0.";
+			throw RsaException(err_msg);
+		}
+
+		if (k == 2 || k == 3)
+		{
+			return true;
+		}
+		if (k == 1 || k % 2 == 0)
+		{
+			return false;
+		}
+
+		for (size_t i = 0; i < 100; i++)
+		{
+			const mpz_class a = 2 + rand.get_z_range(k - 2);
+
+			if (gcd(a, k) > 1)
+			{
+				return false;
+			}
+
+			const mpz_class x = (k + jacobi(a, k)) % k;
+			if (x == 0)
+			{
+				return false;
+			}
+			mpz_class y;
+			mpz_powm(
+				y.get_mpz_t(),
+				a.get_mpz_t(),
+				mpz_class((k - 1) / 2).get_mpz_t(),
+				k.get_mpz_t()
+			);
+			if (x != y)
+			{
+				return false;
+			}
+		}
+
+		return true;
+	}
+
+
+	/**
+	 * Generates a random prime number of a specified length.
+	 *
+	 * @param length A length (in bits) of a prime number to be generated.
+	 * @return A random prime number of a specified length.
+	 * @throw RsaException if arguments are not valid.
+	 */
+	auto generate_prime(const mp_bitcnt_t length) -> mpz_class
+	{
+		if (length <= 2)
+		{
+			const string err_msg =
+				"The number of bits of a prime number should be at least 3.";
+			throw RsaException(err_msg);
+		}
+
+		mpz_class prime = rand.get_z_bits(length);
+
+		const mp_bitcnt_t bts[] = {0, length - 2, length - 1};
+		for (const mp_bitcnt_t bt : bts)
+		{
+			mpz_setbit(prime.get_mpz_t(), bt);
+		}
+
+		while (!is_prime(prime))
+		{
+			prime++++;
+		}
+
+		return prime;
 	}
 };
 
