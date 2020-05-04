@@ -1,0 +1,114 @@
+% Author: Dominik Harmim <harmim6@gmail.com>
+
+\documentclass[a4paper, 10pt, twocolumn]{article}
+
+\usepackage[british]{babel}
+\usepackage[utf8]{inputenc}
+\usepackage[T1]{fontenc}
+\usepackage[left=2cm, top=2cm, text={17cm, 25cm}]{geometry}
+\usepackage[unicode, colorlinks, hypertexnames=false, citecolor=red]{hyperref}
+\usepackage{times}
+\usepackage{graphicx}
+\usepackage{amsmath}
+
+\setlength{\parindent}{0pt}
+\setlength{\parskip}{.5 \bigskipamount}
+
+
+\begin{document}
+    \twocolumn[
+        \begin{@twocolumnfalse}
+            \begin{center}
+                {\Large
+                    Brno University of Technology \\
+                    Faculty of Information Technology \\
+                }
+                {\includegraphics[width=.4 \linewidth]{img/FIT_logo.pdf}} \\
+
+                {\LARGE
+                    Cryptography \\
+                    2.~Project\,--\,RSA \\[.4cm]
+                }
+
+                {\large
+                    Dominik Harmim (xharmi00) \\
+                    \texttt{xharmi00@stud.fit.vutbr.cz} \\
+                    \today
+                }
+            \end{center}
+        \end{@twocolumnfalse}
+    ]
+
+
+    \section{Introduction}
+
+    The goal of this project is to implement the RSA algorithm\,---\,an
+    asymmetry cryptography algorithm. The program that should be created
+    should be able to generate parameters of the RSA, encrypt and decrypt
+    messages, and break the algorithm using factorisation of the public
+    modulus. The program is implemented in~C++ and it is used arithmetic
+    library GMP\footnote{Arithmetic library
+    \textbf{GMP}\,--\,\url{https://gmplib.org}.} for the computation with
+    large numbers. In the following chapters, there are briefly described
+    the methods and algorithms used. Appropriate bibliography and other
+    sources are mentioned as well.
+
+
+    \section{Encryption and Decryption}
+
+    An encryption and decryption is implemented by~\cite{pkcrypt}. The
+    private transformation~$ D $~and the public transformation~$ E $~are
+    defined as follows: $ D(c) = m = c^d\,\mod n $; $ E(m) = c = m^e\,\mod
+    n $, where~$ m $~is a~decrypted message, $ c $~is an encrypted message,
+    $ e $~is the public exponent, $ d $~is the private exponent, and
+    $ n $~is the public modulus.
+
+
+    \section{RSA Parameters Generation}
+
+    The generation of RSA parameters is implemented according
+    to~\cite{pkcrypt}. At first, two random prime numbers ($ p $~and~$ q $)
+    are generated and $ n = p \cdot q $ and $ h = (p - 1) \cdot (q - 1) $ is
+    computed. Then, it is chosen~$ e $~to be an integer in range
+    $ (2, h - 1) $ with $ GCD(e, h) = 1 $. Further, it is found the
+    multiplicative inverse~$ d $~of~$ e $, modulo~$ h $. Now, $ n $~and~$ e
+    $~are public and~$ d $, $ p $, $ q $, $ h $ are secret.
+
+    The computation of a~greatest common divisor (the $ GCD $ function)
+    is done using the Euclid's algorithm. The computation of a~multiplicative
+    inverse is done using the extended Euclid's algorithm. These algorithms
+    are in detail described in~\cite{pkcrypt}.
+
+    For the generation of the prime numbers, it is used the probabilistic
+    approach using Solovay-Strassen test with the computation of the
+    Jacobi symbol. These algorithms are explained and demonstrated
+    in~\cite{pkcrypt, solovay, jacobi}.
+
+
+    \section{Breaking the Algorithm}
+
+    Breaking of the algorithm is achieved using the factorisation of the
+    public modulus. Once the factorisation is done, one of the secret
+    prime numbers is obtained and the other one is then easily calculated
+    as well as the private exponent. So, the private key is obtained.
+
+    Factorisation of the public modulus is implemented using the
+    Pollard Rho Brent Integer Factorisation, see~\cite{brent, brentOnline}.
+
+
+    \section{Conclusion}
+
+    Within this project, the RSA algorithm has been successfully
+    implemented in a~desirable way. It was successfully tested on
+    computer \texttt{merlin.fit.vutbr.cz}. It was experimentally
+    verified that the program can correctly generate keys for the public
+    modulus up to~4096 bits length and that it can break the algorithm
+    for the public modulus up to~100 bits length quite fast. The program
+    works properly also for longer keys but, as expected, it will take
+    more time.
+
+
+    \bibliographystyle{englishiso}
+    \renewcommand{\refname}{Bibliography}
+    \bibliography{doc}
+\end{document}
